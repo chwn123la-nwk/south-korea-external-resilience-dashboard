@@ -1,0 +1,28 @@
+name: Refresh official data
+on:
+  schedule:
+    - cron: '17 12 * * *' # Daily at 12:17 UTC; publication lags remain source-specific
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - run: pip install -r requirements.txt
+      - name: Fetch and validate all six official series
+        run: python data_sources.py --save
+      - name: Commit successful snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/snapshot.json data/verification.csv
+          if ! git diff --cached --quiet; then
+            git commit -m "Update verified official series snapshot"
+            git push
+          fi
